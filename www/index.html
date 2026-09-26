@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080808">
+<meta name="description" content="Nori — KAGE Elite Academy academic command center">
+<title>Nori — KAGE Elite Academy</title>
+<link rel="icon" href="assets/kage-emblem.png">
+</head>
+<body>
+<div id="intro" class="intro" aria-hidden="false">
+  <div class="intro-noise"></div><div class="intro-top"><span>NORI / KAGE ELITE ACADEMY</span><span>ACADEMIC COMMAND</span></div>
+  <div class="intro-stage"><div class="intro-copy"><div class="intro-crest"><img src="assets/kage-emblem.png" alt="KAGE crest"></div><div class="intro-wordmark">NORI</div><div class="intro-sub">KAGE ELITE ACADEMY</div><div class="intro-motto">LEARN · GROW · LEAD</div><div class="intro-rule"><i></i><span>DISCIPLINE TODAY. FREEDOM TOMORROW.</span><i></i></div><div class="intro-actions"><button id="startBtn" class="intro-primary">ENTER NORI <span>→</span></button><button id="introChatBtn" class="intro-secondary">MEET NORI</button></div><div class="intro-timer"><span id="introCount">03</span> / INITIALIZING NORI</div></div><div class="intro-art"><div class="art-glow"></div><img src="assets/nori-cover.jpg" alt="Nori"></div></div>
+  <div class="intro-bottom"><span>ACADEMIC COMMAND CENTER</span><span>NORI SYSTEM</span></div>
+</div>
+<div id="app" class="app hidden">
+<header class="topbar"><div class="brand" data-route="home"><img src="assets/kage-emblem.png" alt="KAGE"><div><strong>NORI</strong><span>KAGE ELITE ACADEMY</span></div></div><div class="top-center"><b id="pageTitle">HOME</b><span id="pageDate"></span></div><div class="top-actions"><button class="icon-btn" data-route="settings" title="Settings">⚙</button><button class="avatar-btn" data-action="chat" title="Meet Nori"><img src="assets/nori-cover.jpg" alt="Nori"></button></div></header>
+<main id="screen"></main>
+<nav class="bottom-nav" aria-label="Main navigation">
+<button data-route="home" class="active"><span class="nori-nav-icon nori-i-home" aria-hidden="true"></span>HOME</button>
+<button data-route="recover"><span class="nori-nav-icon nori-i-recover" aria-hidden="true"></span>RECOVER</button>
+<button data-route="study"><span class="nori-nav-icon nori-i-study" aria-hidden="true"></span>STUDY</button>
+<button data-route="tracker"><span class="nori-nav-icon nori-i-tracker" aria-hidden="true"></span>TRACKER</button>
+<button data-route="profile"><span class="nori-nav-icon nori-i-profile" aria-hidden="true"></span>PROFILE</button></nav>
+<button id="noriFloat" class="nori-float" title="Open Nori"><span class="float-ring"></span><img src="assets/nori-cover.jpg" alt="Nori"><i></i></button>
+</div><div id="modalRoot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  function unlock(){
+    const ok=!!window.NoriAuthGate?.state?.canEnter;
+    document.body.classList.toggle('nori-modern-ready',ok);
+    if(ok){const intro=document.getElementById('intro');if(intro)intro.style.visibility='visible';}
+  }
+  window.addEventListener('nori:auth-ready',unlock);
+  document.addEventListener('DOMContentLoaded',()=>{unlock();let n=0;const t=setInterval(()=>{unlock();if(++n>40)clearInterval(t)},250);});
+})();
+</script>
+  <link rel="stylesheet" href="nori-v10-bundle.css">
+  <script src="nori-v10-bundle.js"></script>
+</body>
+</html>
