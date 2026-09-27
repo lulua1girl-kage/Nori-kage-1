@@ -1,6 +1,6 @@
 import { $, add, mode, VERSION } from './core.js';
 import { S, save } from './state.js';
-import { version } from './api.js';
+import { version, getAISettings, saveAISettings } from './api.js';
 import { initVoice, speak, stopSpeaking } from './voice.js';
 import { parseCommand, validate } from './actions.js';
 import { createMemory } from './memory.js';
