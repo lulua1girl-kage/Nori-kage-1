@@ -1,0 +1,25 @@
+{
+  "configVersion": 2,
+  "jarvisVersion": "11.1.0",
+  "refreshSeconds": 300,
+  "providers": {
+    "openai": {
+      "enabled": true,
+      "model": "gpt-4o-mini",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "capabilities": ["conversation","reasoning","planning","academic","tools"]
+    },
+    "gemini": {
+      "enabled": true,
+      "model": "gemini-2.5-flash",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+      "capabilities": ["conversation","reasoning","academic","vision","tools"]
+    },
+    "anthropic": {
+      "enabled": true,
+      "model": "claude-3-5-haiku-latest",
+      "endpoint": "https://api.anthropic.com/v1/messages",
+      "capabilities": ["conversation","reasoning","planning","academic"]
+    }
+  }
+}
