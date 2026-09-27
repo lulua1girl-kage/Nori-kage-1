@@ -12,7 +12,7 @@ jobs:
       - name: Checkout exact Nori v2 Fixed artifact
         uses: actions/checkout@v4
 
-      - name: Prepare source
+      - name: Prepare source without changing Nori code
         run: |
           set -euo pipefail
           rm -rf build
@@ -20,6 +20,11 @@ jobs:
           unzip -q nori-v2-fixed.zip -d build
           test -d build/fixed
           cp expr-concerned.jpg build/fixed/assets/icon.png
+          cd build/fixed
+          mkdir -p www
+          find . -mindepth 1 -maxdepth 1 ! -name www ! -name android ! -name node_modules -exec cp -a {} www/ \;
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('capacitor.config.json','utf8'));p.webDir='www';fs.writeFileSync('capacitor.config.json',JSON.stringify(p,null,2)+'\\n')"
+          cd ../..
           sha256sum nori-v2-fixed.zip expr-concerned.jpg build/fixed/assets/icon.png > build/source-checksums.txt
 
       - name: Set up Node
