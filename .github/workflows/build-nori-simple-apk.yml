@@ -14,17 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
       - name: Prepare Nori web assets
         run: |
           mkdir -p android-app/app/src/main/assets
@@ -38,41 +35,28 @@ jobs:
           }
           export async function chat(messages,capability='conversation'){
             const backend=localStorage.getItem('nori_backend_url')||'';
-            if(!backend){
-              return {text:'I’m Nori. The standalone app is running, but an AI provider connection has not been configured yet. Your voice, text, memory, and local Nori systems are available.',provider:'LOCAL',model:'offline'};
-            }
-            const r=await fetch(backend.replace(/\/$/,'')+'/api/chat',{
-              method:'POST',
-              headers:{'content-type':'application/json'},
-              body:JSON.stringify({messages,capability})
-            });
-            const j=await r.json();
-            if(!r.ok)throw Error(j.error||'AI provider unavailable');
-            return j;
+            if(!backend)return {text:'I’m Nori. The standalone app is running, but an AI provider connection has not been configured yet. Your voice, text, memory, and local Nori systems are available.',provider:'LOCAL',model:'offline'};
+            const r=await fetch(backend.replace(/\/$/,'')+'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages,capability})});
+            const j=await r.json();if(!r.ok)throw Error(j.error||'AI provider unavailable');return j;
           }
           EOF
-
       - name: Validate JavaScript
         run: |
           cd jarvis
           npm run check
-
       - name: Generate Gradle wrapper
         working-directory: android-app
-        run: gradle wrapper --gradle-version 9.6.0
-
+        run: gradle wrapper --gradle-version 8.13
       - name: Build APK
         working-directory: android-app
         run: |
           chmod +x ./gradlew
           ./gradlew --no-daemon :app:assembleDebug
-
       - name: Verify APK
         working-directory: android-app
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
           ls -lh app/build/outputs/apk/debug/app-debug.apk
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
