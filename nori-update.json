@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "configVersion": 1,
+  "minAppVersion": "1.0.0",
+  "providerModels": {
+    "openai": "gpt-4o-mini",
+    "gemini": "gemini-2.5-flash",
+    "anthropic": "claude-3-5-haiku-latest"
+  },
+  "features": {
+    "remoteConfig": true,
+    "kageBridge": true,
+    "profileUpdates": true,
+    "routeHealth": true
+  }
+}
