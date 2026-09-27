@@ -1,7 +1,6 @@
 import {VERSION} from './core.js';
 const KEY='nori_jarvis_state';
-const blank={version:VERSION,messages:[],memory:[],kage:null,muted:false,permissions:{autoLowRisk:true,autoConsequential:false}};
-export const S=(()=>{try{return {...blank,...JSON.parse(localStorage.getItem(KEY)||'null')}}catch{return {...blank}}})();
-export const save=()=>localStorage.setItem(KEY,JSON.stringify(S));
-export function remember(text){if(/remember|my goal|my exam|my schedule|i prefer|i like|call me/i.test(text)){S.memory.push({text,at:Date.now()});S.memory=S.memory.slice(-100)}}
-export function context(){return JSON.stringify({memory:S.memory.slice(-25),kage:S.kage}).slice(0,24000)}
+const blank={version:VERSION,messages:[],memory:[],events:[],kage:null,muted:false,permissions:{autoLowRisk:true,autoConsequential:false},session:{startedAt:Date.now(),turns:0}};
+export const S=(()=>{try{const saved=JSON.parse(localStorage.getItem(KEY)||'null');return {...blank,...saved,session:{...blank.session,...(saved?.session||{})},permissions:{...blank.permissions,...(saved?.permissions||{})}}}catch{return structuredClone(blank)}})();
+export const save=()=>{S.version=VERSION;localStorage.setItem(KEY,JSON.stringify(S))};
+export function context(){return JSON.stringify({memory:S.memory?.slice(0,25)||[],events:S.events?.slice(-20)||[],kage:S.kage}).slice(0,26000)}
