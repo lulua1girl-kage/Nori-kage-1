@@ -3,7 +3,7 @@ name: Build Nori v2 Fixed APK
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   build-apk:
@@ -11,7 +11,6 @@ jobs:
     steps:
       - name: Checkout exact Nori v2 Fixed artifact
         uses: actions/checkout@v4
-
       - name: Prepare source without changing Nori code
         run: |
           set -euo pipefail
@@ -20,61 +19,45 @@ jobs:
           unzip -q nori-v2-fixed.zip -d build
           test -d build/fixed
           cd build/fixed
-          mkdir -p resources
+          mkdir -p resources www
           cp ../../expr-concerned.jpg resources/icon.jpg
-          mkdir -p www
           find . -mindepth 1 -maxdepth 1 ! -name www ! -name android ! -name node_modules -exec cp -a {} www/ \;
           cp ../../nori-modern/index.html www/index.html
           cp ../../nori-modern/voice.js www/voice.js
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('www/index.html')
-          x=p.read_text()
+          p=Path('www/index.html'); x=p.read_text()
           marker='<script>'
           if marker not in x: raise SystemExit('Nori modern script anchor missing')
-          x=x.replace(marker,'<script src="voice.js"></script>'+marker,1)
-          p.write_text(x)
+          p.write_text(x.replace(marker,'<script src="voice.js"></script>'+marker,1))
           PY
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('capacitor.config.json','utf8'));p.webDir='www';fs.writeFileSync('capacitor.config.json',JSON.stringify(p,null,2)+'\\n')"
           cd ../..
           sha256sum nori-v2-fixed.zip expr-concerned.jpg > build/source-checksums.txt
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install web dependencies and Android voice plugins
+      - name: Install dependencies
         working-directory: build/fixed
         run: |
           npm install --no-audit --no-fund
           npm install --save-exact @capacitor-community/speech-recognition@6.0.1 @capacitor-community/text-to-speech@4.1.1
-
-      - name: Patch Android voice bridge only (original ZIP remains unchanged)
+      - name: Patch Android voice bridge
         working-directory: build/fixed
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('nori-native-bridge.js')
-          s=p.read_text()
+          p=Path('nori-native-bridge.js'); s=p.read_text()
           old='''function noriSpeak(text, options) {\n  if (!window.speechSynthesis) return;\n  options = options || {};'''
-          new='''function noriSpeak(text, options) {\n  options = options || {};\n  if (NORI_IS_NATIVE) {\n    const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;\n    if (P && P.speak) {\n      try { document.dispatchEvent(new CustomEvent('nori:voice-state',{detail:{state:'SPEAKING',transcript:text}})); } catch(e) {}\n      if (window.NoriInteractivePresence && window.NoriInteractivePresence.setState) window.NoriInteractivePresence.setState('SPEAKING');\n      if (options.onStart) options.onStart();\n      return P.speak({text:String(text||''),lang:'en-US',rate:options.rate==null?0.98:options.rate,pitch:options.pitch==null?1:options.pitch,volume:1,category:'ambient',queueStrategy:1}).then(function(){\n        if (window.NoriInteractivePresence && window.NoriInteractivePresence.setState) window.NoriInteractivePresence.setState('IDLE');\n        try { document.dispatchEvent(new CustomEvent('nori:voice-state',{detail:{state:'IDLE'}})); } catch(e) {}\n        if (options.onEnd) options.onEnd();\n      }).catch(function(err){\n        if (options.onError) options.onError(err);\n      });\n    }\n  }\n  if (!window.speechSynthesis) { if (options.onError) options.onError(new Error('speech-unavailable')); return; }'''
+          new='''function noriSpeak(text, options) {\n  options = options || {};\n  if (NORI_IS_NATIVE) {\n    const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;\n    if (P && P.speak) return P.speak({text:String(text||''),lang:'en-US',rate:options.rate==null?0.98:options.rate,pitch:options.pitch==null?1:options.pitch,volume:1,category:'ambient',queueStrategy:1});\n  }\n  if (!window.speechSynthesis) return;'''
           if old not in s: raise SystemExit('noriSpeak anchor not found')
           p.write_text(s.replace(old,new))
-
-          p=Path('nori-voice-v28.js')
-          s=p.read_text()
-          old='''  async function speak(text,opts){opts=opts||{};var engine=opts.engine||state.engine;try{if(engine==='piper'||engine==='xtts')return await localSpeak(engine,text);'''
-          new='''  async function speak(text,opts){opts=opts||{};var engine=opts.engine||state.engine;try{\n    if(g.NORI_IS_NATIVE && g.Capacitor && g.Capacitor.Plugins && g.Capacitor.Plugins.TextToSpeech && g.Capacitor.Plugins.TextToSpeech.speak){\n      await g.Capacitor.Plugins.TextToSpeech.speak({text:String(text||''),lang:opts.language||state.language||'en-US',rate:Number(opts.rate||state.rate)||0.98,pitch:Number(opts.pitch||1)||1,volume:Number(state.volume)||1,category:'ambient',queueStrategy:1});\n      return {engine:'native-tts'};\n    }\n    if(engine==='piper'||engine==='xtts')return await localSpeak(engine,text);'''
-          if old not in s: raise SystemExit('noriVoice speak anchor not found')
-          p.write_text(s.replace(old,new))
           PY
-
       - name: Create Android wrapper
         working-directory: build/fixed
         run: npx cap add android
-
-      - name: Generate Android launcher icons from expr-concerned
+      - name: Generate Android launcher icons
         working-directory: build/fixed
         run: |
           python3 -m pip install --quiet pillow
@@ -85,23 +68,19 @@ jobs:
           PY
           rm resources/icon.jpg
           npx -y @capacitor/assets generate --android
-
-      - name: Sync exact web artifact
+      - name: Sync web artifact
         working-directory: build/fixed
         run: npx cap sync android
-
       - name: Build debug APK
         working-directory: build/fixed/android
         run: |
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon
-
       - name: Verify APK exists
         run: |
           set -euo pipefail
           test -f build/fixed/android/app/build/outputs/apk/debug/app-debug.apk
           sha256sum build/fixed/android/app/build/outputs/apk/debug/app-debug.apk > build/apk-sha256.txt
-
       - name: Upload maintained APK artifact
         uses: actions/upload-artifact@v4
         with:
