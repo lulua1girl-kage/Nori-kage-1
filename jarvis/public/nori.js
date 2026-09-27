@@ -1,6 +1,6 @@
 import { $, add, mode, VERSION } from './core.js';
 import { S, save } from './state.js';
-import { chat, version } from './api.js';
+import { version } from './api.js';
 import { initVoice, speak, stopSpeaking } from './voice.js';
 import { parseCommand, validate } from './actions.js';
 import { createMemory } from './memory.js';
@@ -26,8 +26,20 @@ async function runAction(a){
  try{return await N[fn](a)||'Done.'}catch(e){return 'The action failed: '+(e.message||e)}
 }
 
-function intelligenceSnapshot(){const k=S.kage?analyzeKage(S.kage):null;const a=S.kage?analyzeAcademics((k?.structure||{})):null;const p=detectPatterns(S.events||[]);const d=decide({academic:a||{},patterns:p});const recovery=planRecovery({decision:d,academic:a||{}});return {kage:k,academic:a,patterns:p,decision:d,recovery,integrity:integrityCheck({kage:S.kage,decision:d,recovery})}}\n\nasync function respond(text){
- text=String(text||'').trim();if(!text)return;
+function intelligenceSnapshot(){
+ const k=S.kage?analyzeKage(S.kage):null;
+ const a=S.kage?analyzeAcademics(k?.structure||{}):null;
+ const p=detectPatterns(S.events||[]);
+ const d=decide({academic:a||{},patterns:p});
+ const recovery=planRecovery({decision:d,academic:a||{}});
+ const merit=S.kage?analyzeMerit(k?.structure||{}):null;
+ const integrity=integrityCheck({kage:S.kage,decision:d,recovery});
+ return {kage:k,academic:a,patterns:p,decision:d,recovery,merit,integrity};
+}
+
+async function respond(text){
+ text=String(text||'').trim();
+ if(!text)return;
  add('user',text);
  S.messages.push({role:'user',content:text});
  memory.explicit(text);
@@ -40,26 +52,46 @@ function intelligenceSnapshot(){const k=S.kage?analyzeKage(S.kage):null;const a=
  if(action){
    const result=await runAction(action);
    memory.event('action_result',{type:action.type,result:String(result).slice(0,500)});
-   add('nori',result);S.messages.push({role:'assistant',content:result});save();speak(result,mode);mode('ready');return;
+   add('nori',result);
+   S.messages.push({role:'assistant',content:result});
+   save();
+   speak(result,mode);
+   mode('ready');
+   return;
  }
 
  try{
-   const intelligence=intelligenceSnapshot();\n   const capability=classify(text);
-   const r=await askSupervisor({messages:S.messages.slice(-18),context:(memory.context()+ '\\nINTELLIGENCE:'+JSON.stringify(intelligence).slice(0,12000)+(S.kage?'\\nKAGE_DETAIL:'+kageContext(S.kage):'')),capability});
+   const intelligence=intelligenceSnapshot();
+   const capability=classify(text);
+   const context=memory.context()+'\nINTELLIGENCE:'+JSON.stringify(intelligence).slice(0,12000)+(S.kage?'\nKAGE_DETAIL:'+kageContext(S.kage):'');
+   const r=await askSupervisor({messages:S.messages.slice(-18),context,capability});
    $('route').textContent=(r.provider||'AI').toUpperCase();
    const out=r.text||'I did not receive a usable response.';
-   add('nori',out);S.messages.push({role:'assistant',content:out});
+   add('nori',out);
+   S.messages.push({role:'assistant',content:out});
    S.messages=S.messages.slice(-60);
    memory.event('assistant_turn',{capability,provider:r.provider||'unknown'});
-   save();speak(out,mode);
+   save();
+   speak(out,mode);
  }catch(e){
    const out='I am online locally, but the AI provider is unavailable. I will not pretend the request succeeded.';
-   add('nori',out);S.messages.push({role:'assistant',content:out});memory.event('provider_error',{message:e.message});save();speak(out,mode);
- }finally{mode('ready')}
+   add('nori',out);
+   S.messages.push({role:'assistant',content:out});
+   memory.event('provider_error',{message:e.message});
+   save();
+   speak(out,mode);
+ }finally{
+   mode('ready');
+ }
 }
 
 async function boot(){
- try{const v=await version();$('route').textContent=(v.jarvisVersion||VERSION).toUpperCase()}catch{$('route').textContent='LOCAL'}
+ try{
+   const v=await version();
+   $('route').textContent=(v.jarvisVersion||VERSION).toUpperCase();
+ }catch{
+   $('route').textContent='LOCAL';
+ }
  voice=initVoice({
    onText:t=>respond(t),
    onState:mode,
