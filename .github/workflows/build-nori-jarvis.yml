@@ -1,36 +1,25 @@
-name: Build Nori Jarvis
+name: Build Nori Simple APK
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  validate-and-package:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Syntax check
-        working-directory: jarvis
-        run: npm run check
-
-      - name: Package web build
-        working-directory: jarvis
-        run: |
-          mkdir -p ../dist
-          zip -r ../dist/nori-jarvis-${{ github.sha }}.zip . -x "node_modules/*"
-
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Prepare Android assets
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Prepare web assets
         run: |
           mkdir -p android-app/app/src/main/assets
           cp -R jarvis/public/. android-app/app/src/main/assets/
@@ -38,29 +27,18 @@ jobs:
           sed -i 's#src="/nori.js"#src="nori.js"#' android-app/app/src/main/assets/index.html
           cat > android-app/app/src/main/assets/api.js <<'EOF'
 export async function version(){
-  try{const r=await fetch('/api/version');if(r.ok)return r.json()}catch{}
-  return {jarvisVersion:'11.4.0',providerModels:{},offline:true}
+  return {jarvisVersion:'11.4.0',providerModels:{},offline:true};
 }
-export async function chat(messages,capability='conversation'){
-  const backend=localStorage.getItem('nori_backend_url')||'';
-  if(!backend)return {text:'I’m Nori. The standalone app is running, but an AI provider connection has not been configured yet. Voice, text, memory and local Nori systems are available.',provider:'LOCAL',model:'offline'};
-  const r=await fetch(backend.replace(/\/$/,'')+'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages,capability})});
-  const j=await r.json();if(!r.ok)throw Error(j.error||'AI provider unavailable');return j
+export async function chat(){
+  return {text:'I’m Nori. The standalone app is running locally. Connect a Nori backend to enable external AI.',provider:'LOCAL',model:'offline'};
 }
 EOF
 
-      - name: Build Android APK
+      - name: Build APK
         working-directory: android-app
         run: |
           gradle wrapper --gradle-version 9.6.0
           ./gradlew --no-daemon :app:assembleDebug
-
-      - name: Upload web artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nori-jarvis-${{ github.ref_name }}-${{ github.sha }}
-          path: dist/*.zip
-          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
