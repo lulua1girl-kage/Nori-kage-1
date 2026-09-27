@@ -44,9 +44,13 @@ EOF
           cd jarvis
           npm run check
 
+      - name: Generate Gradle wrapper
+        working-directory: android-app
+        run: gradle wrapper --gradle-version 9.6.0
+
       - name: Build APK
         working-directory: android-app
-        run: gradle --no-daemon :app:assembleDebug
+        run: ./gradlew --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
