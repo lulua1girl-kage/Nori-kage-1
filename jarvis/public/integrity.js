@@ -1,0 +1,1 @@
+export function integrityCheck({kage,decision,recovery}){const errors=[];if(decision&&!['normal','attention','priority'].includes(decision.level))errors.push('invalid-decision');if(recovery?.safety?.physicalConsequences)errors.push('unsafe-consequence');if(!kage)errors.push('kage-state-not-imported');return {ok:errors.length===0,errors,humanOverride:true};}
