@@ -5,6 +5,11 @@ import { initVoice, speak, stopSpeaking } from './voice.js';
 import { parseCommand, validate } from './actions.js';
 import { createMemory } from './memory.js';
 import { classify, askSupervisor } from './supervisor.js';
+import { analyzeKage, kageContext } from './kage.js';
+import { analyzeAcademics } from './academic.js';
+import { detectPatterns, decide } from './decision.js';
+import { planRecovery } from './recovery.js';
+import { integrityCheck } from './integrity.js';
 
 window.__noriMuted=false;
 const memory=createMemory(S);
@@ -20,7 +25,7 @@ async function runAction(a){
  try{return await N[fn](a)||'Done.'}catch(e){return 'The action failed: '+(e.message||e)}
 }
 
-async function respond(text){
+function intelligenceSnapshot(){const k=S.kage?analyzeKage(S.kage):null;const a=S.kage?analyzeAcademics((k?.structure||{})):null;const p=detectPatterns(S.events||[]);const d=decide({academic:a||{},patterns:p});const recovery=planRecovery({decision:d,academic:a||{}});return {kage:k,academic:a,patterns:p,decision:d,recovery,integrity:integrityCheck({kage:S.kage,decision:d,recovery})}}\n\nasync function respond(text){
  text=String(text||'').trim();if(!text)return;
  add('user',text);
  S.messages.push({role:'user',content:text});
@@ -38,8 +43,8 @@ async function respond(text){
  }
 
  try{
-   const capability=classify(text);
-   const r=await askSupervisor({messages:S.messages.slice(-18),context:memory.context(),capability});
+   const intelligence=intelligenceSnapshot();\n   const capability=classify(text);
+   const r=await askSupervisor({messages:S.messages.slice(-18),context:(memory.context()+ '\\nINTELLIGENCE:'+JSON.stringify(intelligence).slice(0,12000)+(S.kage?'\\nKAGE_DETAIL:'+kageContext(S.kage):'')),capability});
    $('route').textContent=(r.provider||'AI').toUpperCase();
    const out=r.text||'I did not receive a usable response.';
    add('nori',out);S.messages.push({role:'assistant',content:out});
