@@ -19,8 +19,8 @@ const state=id=>health.get(id)||{fails:0,cooldown:0,latency:0};
 const bad=id=>{const h=state(id);h.fails=Math.min(h.fails+1,8);h.cooldown=Date.now()+Math.min(4000*2**(h.fails-1),180000);health.set(id,h)};
 const good=(id,latency)=>health.set(id,{fails:0,cooldown:0,latency});
 
-function candidates(capability){
-  const cfg=getProviderConfig().providers;
+async function candidates(capability){
+  const cfg=(await getProviderConfig()).providers;
   return Object.entries(cfg).flatMap(([p,c])=>{
     if(c.enabled===false || (capability && !c.capabilities?.includes(capability))) return [];
     return (keys[p]||[]).map((k,i)=>({id:p+':'+i,p,k,c}));
@@ -65,12 +65,12 @@ const server=http.createServer(async(req,res)=>{
 
   if(u.pathname==='/api/health'){
     res.setHeader('content-type','application/json');
-    return res.end(JSON.stringify({ok:true,...publicVersion()}));
+    return res.end(JSON.stringify({ok:true,...await publicVersion()}));
   }
 
   if(u.pathname==='/api/version'){
     res.setHeader('content-type','application/json');
-    return res.end(JSON.stringify(publicVersion()));
+    return res.end(JSON.stringify(await publicVersion()));
   }
 
   if(u.pathname==='/api/chat'&&req.method==='POST'){
@@ -78,12 +78,12 @@ const server=http.createServer(async(req,res)=>{
       const b=await body(req);
       const capability=b.capability||'conversation';
       let last;
-      for(const c of candidates(capability)){
+      for(const c of await candidates(capability)){
         if(state(c.id).cooldown>Date.now()) continue;
         const t=Date.now();
         try{
           const out=await call(c,b.messages||[]);
-          if(out){good(c.id,Date.now()-t);res.setHeader('content-type','application/json');return res.end(JSON.stringify({text:out,provider:c.id,model:c.c.model,jarvisVersion:getProviderConfig().jarvisVersion}))}
+          if(out){good(c.id,Date.now()-t);res.setHeader('content-type','application/json');return res.end(JSON.stringify({text:out,provider:c.id,model:c.c.model,jarvisVersion:(await getProviderConfig()).jarvisVersion}))}
           bad(c.id);
         }catch(e){last=e;bad(c.id)}
       }
