@@ -2,7 +2,7 @@ name: Build Nori Jarvis
 
 on:
   push:
-    branches: [jarvis-*]
+    branches: ['jarvis-*']
   workflow_dispatch:
 
 jobs:
