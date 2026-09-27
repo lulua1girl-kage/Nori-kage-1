@@ -37,7 +37,7 @@ jobs:
         working-directory: build/fixed
         run: |
           npm install --no-audit --no-fund
-          npm install --no-save @capacitor-community/speech-recognition@6.0.1 @capacitor-community/text-to-speech@4.1.1
+          npm install --save-exact @capacitor-community/speech-recognition@6.0.1 @capacitor-community/text-to-speech@4.1.1
 
       - name: Patch Android voice bridge only (original ZIP remains unchanged)
         working-directory: build/fixed
