@@ -1,4 +1,5 @@
 name: Build Nori Simple APK
+# Trigger APK build after Gradle wrapper fix
 
 on:
   push:
