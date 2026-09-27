@@ -30,7 +30,7 @@ jobs:
       - name: Build APK
         working-directory: android-app
         run: |
-          gradle -p . wrapper --gradle-version 9.6.0
+          gradle --no-search-upward wrapper --gradle-version 9.6.0
           ./gradlew --no-daemon :app:assembleDebug
 
       - name: Upload APK
