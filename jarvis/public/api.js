@@ -1,0 +1,2 @@
+export async function version(){const r=await fetch('/api/version');if(!r.ok)throw Error('Version service unavailable');return r.json()}
+export async function chat(messages,capability='conversation'){const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages,capability})});const j=await r.json();if(!r.ok)throw Error(j.error||'AI provider unavailable');return j}
