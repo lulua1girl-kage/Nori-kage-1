@@ -10,6 +10,7 @@ import { analyzeAcademics } from './academic.js';
 import { detectPatterns, decide } from './decision.js';
 import { planRecovery } from './recovery.js';
 import { integrityCheck } from './integrity.js';
+import { analyzeMerit } from './merit.js';
 
 window.__noriMuted=false;
 const memory=createMemory(S);
