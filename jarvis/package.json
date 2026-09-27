@@ -1,1 +1,8 @@
-{"name":"nori-jarvis-web","version":"11.0.0","private":true,"type":"module","scripts":{"start":"node server/index.mjs"},"dependencies":{"ws":"^8.18.3"}}
+{
+  "name":"nori-jarvis-web",
+  "version":"11.1.0",
+  "private":true,
+  "type":"module",
+  "scripts":{"start":"node server/index.mjs","check":"node --check server/index.mjs"},
+  "dependencies":{"ws":"^8.18.3"}
+}
