@@ -58,8 +58,11 @@ jobs:
           npm run check
 
       - name: Generate Gradle wrapper
-        working-directory: android-app
-        run: gradle -c settings.gradle wrapper --gradle-version 9.6.0
+        run: |
+          mv settings.gradle settings.gradle.repo
+          trap 'mv settings.gradle.repo settings.gradle' EXIT
+          cd android-app
+          gradle wrapper --gradle-version 9.6.0
 
       - name: Build APK
         working-directory: android-app
