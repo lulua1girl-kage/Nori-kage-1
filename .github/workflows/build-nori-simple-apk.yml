@@ -1,14 +1,20 @@
 name: Build Nori Simple APK
-# Trigger APK build after Gradle wrapper fix
 
 on:
   push:
     branches: [jarvis-11.4.0-apk]
   workflow_dispatch:
 
+concurrency:
+  group: nori-simple-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,6 +23,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Prepare Nori web assets
         run: |
@@ -25,20 +32,25 @@ jobs:
           sed -i 's#href="/styles.css"#href="styles.css"#' android-app/app/src/main/assets/index.html
           sed -i 's#src="/nori.js"#src="nori.js"#' android-app/app/src/main/assets/index.html
           cat > android-app/app/src/main/assets/api.js <<'EOF'
-export async function version(){
-  try{const r=await fetch('/api/version');if(r.ok)return r.json()}catch{}
-  return {jarvisVersion:'11.4.0',providerModels:{},offline:true}
-}
-export async function chat(messages,capability='conversation'){
-  const backend=localStorage.getItem('nori_backend_url')||'';
-  if(!backend){
-    const last=messages?.filter(x=>x.role==='user').at(-1)?.content||'';
-    return {text:'I’m Nori. The standalone app is running, but an AI provider connection has not been configured yet. Your voice, text, memory, and local Nori systems are available.',provider:'LOCAL',model:'offline'};
-  }
-  const r=await fetch(backend.replace(/\/$/,'')+'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages,capability})});
-  const j=await r.json();if(!r.ok)throw Error(j.error||'AI provider unavailable');return j
-}
-EOF
+          export async function version(){
+            try{const r=await fetch('/api/version');if(r.ok)return r.json()}catch{}
+            return {jarvisVersion:'11.4.0',providerModels:{},offline:true};
+          }
+          export async function chat(messages,capability='conversation'){
+            const backend=localStorage.getItem('nori_backend_url')||'';
+            if(!backend){
+              return {text:'I’m Nori. The standalone app is running, but an AI provider connection has not been configured yet. Your voice, text, memory, and local Nori systems are available.',provider:'LOCAL',model:'offline'};
+            }
+            const r=await fetch(backend.replace(/\/$/,'')+'/api/chat',{
+              method:'POST',
+              headers:{'content-type':'application/json'},
+              body:JSON.stringify({messages,capability})
+            });
+            const j=await r.json();
+            if(!r.ok)throw Error(j.error||'AI provider unavailable');
+            return j;
+          }
+          EOF
 
       - name: Validate JavaScript
         run: |
@@ -51,7 +63,15 @@ EOF
 
       - name: Build APK
         working-directory: android-app
-        run: ./gradlew --no-daemon :app:assembleDebug
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Verify APK
+        working-directory: android-app
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
