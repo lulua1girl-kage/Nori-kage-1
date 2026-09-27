@@ -1,1 +1,57 @@
-const $=id=>document.getElementById(id),K='nori_jarvis_11';let S=JSON.parse(localStorage.getItem(K)||'null')||{version:'11.0.0',messages:[],memory:[],kage:null,muted:false,permissions:{autoLowRisk:true,autoConsequential:false}};const save=()=>localStorage.setItem(K,JSON.stringify(S));const esc=x=>String(x).replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\\':'&#92;'}[c]||c));function add(r,t){let e=document.createElement('div');e.className='msg';e.innerHTML='<b>'+ (r==='user'?'YOU':'NORI')+'</b>'+esc(t);$('chat').append(e);$('chat').scrollTop=$('chat').scrollHeight}function mode(x){$('state').textContent=x.toUpperCase();$('orb').className=x}function speak(t){if(S.muted)return;if(window.NoriNative?.speak){try{Promise.resolve(window.NoriNative.speak(t)).catch(()=>{});return}catch{}}if(!speechSynthesis)return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t);u.rate=.98;u.pitch=.96;u.onstart=()=>mode('speaking');u.onend=()=>mode('ready');speechSynthesis.speak(u)}function stop(){try{window.NoriNative?.stopSpeaking?.()}catch{};speechSynthesis?.cancel();try{rec?.stop()}catch{};mode('ready')}function remember(t){if(/remember|my goal|my exam|my schedule|i prefer|i like|call me/i.test(t)){S.memory.push({text:t,at:Date.now()});S.memory=S.memory.slice(-100);save()}}function ctx(){return JSON.stringify({memory:S.memory.slice(-20),kage:S.kage}).slice(0,18000)}function cmd(t){let p=t.toLowerCase();let m=p.match(/^(open|go to|show)\\s+(home|study|assessment|recovery|handbook|settings)/);if(m)return{type:'navigate',screen:m[2]};if(/unblock|unlock app/.test(p))return{type:'clear_block'};if(/block|lock app/.test(p))return{type:'set_block',reason:'Nori command'};if(/merit points|add merit|remove merit/.test(p))return{type:'merit_change',text:t};if(/record|mark.*done|completed/.test(p))return{type:'record_progress',text:t};return null}async function action(a){if(!a)return;if(window.NoriNative){let fn={navigate:'openScreen',set_block:'setAppBlock',clear_block:'clearAppBlock',record_progress:'updateKage',merit_change:'updateKage'}[a.type];if(fn&&typeof window.NoriNative[fn]==='function'){if(['set_block','clear_block','merit_change'].includes(a.type)&&!S.permissions.autoConsequential)return 'I prepared '+a.type+' but require confirmation before a consequential change.';try{return await window.NoriNative[fn](a)||'Done: '+a.type}catch(e){return 'Native action failed: '+(e.message||e)}}}return 'I prepared '+a.type+' but the native bridge is not installed.'}async function ai(t){let sys='You are Nori, a Jarvis-style supervisor for one owner. Be precise, adaptive, calm and operational. Coordinate voice, memory, KAGE rules, academic analysis, pattern detection, decision, recovery, achievement and app actions. Never invent scores, merit, completions or actions. Current imported app state is authoritative. Human Override is absolute. Historical handbook rules are structural reference only. Never use physical punishment or unsafe consequences. Prefer correction, targeted practice, recovery blocks, restrictions, verification and proportional escalation/de-escalation. Context: '+ctx();let r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:[{role:'system',content:sys},...S.messages.slice(-18),{role:'user',content:t}]})});let j=await r.json();if(!r.ok)throw Error(j.error||'No AI provider');$('route').textContent=j.provider?.toUpperCase()||'AI';return j.text}async function respond(t){t=t.trim();if(!t)return;add('user',t);S.messages.push({role:'user',content:t});remember(t);let a=cmd(t);mode('thinking');if(a){let z=await action(a);if(z){add('nori',z);S.messages.push({role:'assistant',content:z});save();speak(z);mode('ready');return}}try{let z=await ai(t);add('nori',z);S.messages.push({role:'assistant',content:z});S.messages=S.messages.slice(-50);save();speak(z)}catch(e){let z='I am online locally. Text, voice, memory, KAGE bridge and app commands are available; cloud reasoning needs a configured server provider.';add('nori',z);S.messages.push({role:'assistant',content:z});save();speak(z)}mode('ready')}let rec=null,recording=false;let SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(SR){rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang=navigator.language||'en-US';rec.onstart=()=>{recording=true;mode('listening')};rec.onresult=e=>{let f='';for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)f+=e.results[i][0].transcript+' ';if(f)respond(f)};rec.onerror=e=>{recording=false;mode('ready');add('nori','Microphone recognition reported '+e.error+'. Text mode remains available.')};rec.onend=()=>{recording=false;if($('state').textContent==='LISTENING')mode('ready')}}$('mic').onclick=()=>{if(!rec){$('composer').classList.add('open');return}if(recording)rec.stop();else try{rec.start()}catch{}};$('orb').onclick=()=>{if(recording)rec.stop();else try{rec?.start()}catch{}};$('text').onclick=()=>{$('composer').classList.toggle('open');if($('composer').classList.contains('open'))$('input').focus()};$('send').onclick=()=>{let x=$('input').value;$('input').value='';respond(x)};$('input').onkeydown=e=>{if(e.key==='Enter')$('send').click()};$('mute').onclick=()=>{S.muted=!S.muted;$('mute').querySelector('small').textContent=S.muted?'MUTED':'MUTE';if(S.muted)stop();save()};$('stop').onclick=stop;$('new').onclick=()=>{$('chat').innerHTML='';S.messages=[];save()};$('menu').onclick=()=>$('panel').classList.add('open');$('close').onclick=()=>$('panel').classList.remove('open');$('clear').onclick=()=>{S.memory=[];S.messages=[];save();$('chat').innerHTML=''};$('kageFile').onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{S.kage=JSON.parse(await f.text());save();add('nori','KAGE state linked.')}catch{add('nori','Invalid bridge JSON; existing state preserved.')}};$('export').onclick=()=>{let b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='nori-kage-bridge.json';a.click();URL.revokeObjectURL(a.href)};for(const m of S.messages.slice(-10))add(m.role==='user'?'user':'nori',m.content);save();
+import { $, add, mode, VERSION } from './core.js';
+import { S, save, remember, context } from './state.js';
+import { chat, version } from './api.js';
+import { initVoice, speak, stopSpeaking } from './voice.js';
+import { parseCommand, validate } from './actions.js';
+
+window.__noriMuted=false;
+let voice;
+
+function systemPrompt(){
+ return 'You are Nori, a Jarvis-style supervisor for one owner. Be precise, adaptive, calm and operational. Coordinate conversation, memory, KAGE understanding, academic analysis, pattern detection, decision, recovery, achievement and actions. Never invent scores, merit, completions or actions. Current imported KAGE state is authoritative. Human Override is absolute. Current KAGE rules outrank historical rules. Historical rules are structural reference only. Never use physical punishment or unsafe consequences. Prefer correction, targeted practice, recovery blocks, restrictions, verification and proportional escalation/de-escalation. Return normal conversational text unless an action is explicitly requested. Jarvis version: '+VERSION+'. Context: '+context();
+}
+async function runAction(a){
+ const check=validate(a,S);
+ if(!check.ok)return check.needsConfirmation?'I prepared '+a.type+'. Confirm before I make that consequential change.':check.reason;
+ const N=window.NoriNative;
+ if(!N)return 'I understood the action, but this standalone Jarvis has no native action bridge. The action was not falsely reported as completed.';
+ const fn={navigate:'openScreen',set_block:'setAppBlock',clear_block:'clearAppBlock',record_progress:'updateKage',merit_change:'updateKage'}[a.type];
+ if(!fn||typeof N[fn]!=='function')return 'The requested native capability is not installed.';
+ try{return await N[fn](a)||'Done.'}catch(e){return 'The action failed: '+(e.message||e)}
+}
+async function respond(text){
+ text=text.trim();if(!text)return;
+ add('user',text);S.messages.push({role:'user',content:text});remember(text);save();mode('thinking');
+ const action=parseCommand(text);
+ if(action){
+   const result=await runAction(action);add('nori',result);S.messages.push({role:'assistant',content:result});save();speak(result,mode);mode('ready');return;
+ }
+ try{
+   const r=await chat([{role:'system',content:systemPrompt()},...S.messages.slice(-18)],'conversation');
+   $('route').textContent=(r.provider||'AI').toUpperCase();
+   const textOut=r.text||'I did not receive a usable response.';
+   add('nori',textOut);S.messages.push({role:'assistant',content:textOut});S.messages=S.messages.slice(-60);save();speak(textOut,mode);
+ }catch(e){
+   const fallback='I am online locally, but the AI provider is unavailable right now. I will not pretend the request succeeded.';
+   add('nori',fallback);S.messages.push({role:'assistant',content:fallback});save();speak(fallback,mode);
+ }finally{mode('ready')}
+}
+async function boot(){
+ try{const v=await version();$('route').textContent=(v.jarvisVersion||VERSION).toUpperCase()}catch{$('route').textContent='LOCAL'}
+ voice=initVoice({onText:t=>{if(t.startsWith('__VOICE_ERROR__ ')){add('nori','Voice recognition reported '+t.slice(15)+'. Text remains available.')}else respond(t)},onState:mode});
+ $('mic').onclick=async()=>{try{if($('state').textContent==='LISTENING')await voice.stop();else await voice.start()}catch(e){add('nori',e.message||'Voice unavailable')}}
+ $('orb').onclick=async()=>{try{if($('state').textContent==='LISTENING')await voice.stop();else await voice.start()}catch{}};
+ $('send').onclick=()=>{const x=$('input').value;$('input').value='';respond(x)};
+ $('input').onkeydown=e=>{if(e.key==='Enter')$('send').click()};
+ $('text').onclick=()=>{$('composer').classList.toggle('open');if($('composer').classList.contains('open'))$('input').focus()};
+ $('stop').onclick=()=>{stopSpeaking();voice?.stop();mode('ready')};
+ $('mute').onclick=()=>{S.muted=!S.muted;window.__noriMuted=S.muted;$('mute').querySelector('small').textContent=S.muted?'MUTED':'MUTE';if(S.muted)stopSpeaking();save()};
+ $('new').onclick=()=>{$('chat').innerHTML='';S.messages=[];save()};
+ $('menu').onclick=()=>$('panel').classList.add('open');$('close').onclick=()=>$('panel').classList.remove('open');
+ $('clear').onclick=()=>{S.memory=[];S.messages=[];save();$('chat').innerHTML=''};
+ $('kageFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{S.kage=JSON.parse(await f.text());save();add('nori','KAGE state imported for analysis.')}catch{add('nori','Invalid KAGE JSON; existing state preserved.')}};
+ $('export').onclick=()=>{const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='nori-jarvis-state.json';a.click();URL.revokeObjectURL(a.href)};
+ for(const m of S.messages.slice(-10))add(m.role==='user'?'user':'nori',m.content);
+ save();
+}
+boot();
