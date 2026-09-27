@@ -11,6 +11,7 @@ import { detectPatterns, decide } from './decision.js';
 import { planRecovery } from './recovery.js';
 import { integrityCheck } from './integrity.js';
 import { analyzeMerit } from './merit.js';
+import { generateAcademicConsequence, validateAcademicConsequence } from './consequence.js';
 
 window.__noriMuted=false;
 const memory=createMemory(S);
@@ -34,7 +35,8 @@ function intelligenceSnapshot(){
  const recovery=planRecovery({decision:d,academic:a||{}});
  const merit=S.kage?analyzeMerit(k?.structure||{}):null;
  const integrity=integrityCheck({kage:S.kage,decision:d,recovery});
- return {kage:k,academic:a,patterns:p,decision:d,recovery,merit,integrity};
+ const consequence=generateAcademicConsequence({reason:d.reason,severity:d.level==='priority'?'high':d.level==='attention'?'moderate':'low',weakSubjects:a?.weakSubjects||[],pending:a?.uncompleted?.length||0,backlog:a?.backlogCount||0});
+ return {kage:k,academic:a,patterns:p,decision:d,recovery,merit,consequence,consequenceValid:validateAcademicConsequence(consequence),integrity};
 }
 
 async function respond(text){
