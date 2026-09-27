@@ -1,5 +1,6 @@
 name: Build Nori v2 Fixed APK
 
+# Re-runable maintained APK build: every main push and manual dispatch creates a fresh artifact.
 on:
   push:
     branches: [ main ]
