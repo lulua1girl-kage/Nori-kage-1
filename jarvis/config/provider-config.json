@@ -1,6 +1,6 @@
 {
   "configVersion": 3,
-  "jarvisVersion": "11.2.0",
+  "jarvisVersion":"11.3.0",
   "refreshSeconds": 300,
   "providers": {
     "openai": {
