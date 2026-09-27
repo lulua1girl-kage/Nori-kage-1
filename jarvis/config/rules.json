@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "activePolicy": {
+    "humanOverride": true,
+    "currentKageRulesAreAuthoritative": true,
+    "historicalRulesAreReferenceOnly": true,
+    "unsafePhysicalConsequences": false,
+    "consequentialActionsDefaultToConfirmation": true
+  },
+  "actionClasses": {
+    "lowRisk": ["read_state","open_view","analyze","speak","notify"],
+    "consequential": ["change_state","change_merit","change_recovery","restrict","schedule","block"]
+  }
+}
