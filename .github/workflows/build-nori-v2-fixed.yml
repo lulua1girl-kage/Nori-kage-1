@@ -1,0 +1,68 @@
+name: Build Nori v2 Fixed APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact Nori v2 Fixed artifact
+        uses: actions/checkout@v4
+
+      - name: Prepare source
+        run: |
+          set -euo pipefail
+          rm -rf build
+          mkdir -p build
+          unzip -q nori-v2-fixed.zip -d build
+          test -d build/fixed
+          cp expr-concerned.jpg build/fixed/assets/icon-source.jpg
+          convert build/fixed/assets/icon-source.jpg -resize 1024x1024^ -gravity center -extent 1024x1024 build/fixed/assets/icon.png
+          sha256sum nori-v2-fixed.zip expr-concerned.jpg build/fixed/assets/icon.png > build/source-checksums.txt
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install web dependencies
+        working-directory: build/fixed
+        run: npm install --no-audit --no-fund
+
+      - name: Create Android wrapper
+        working-directory: build/fixed
+        run: npx cap add android
+
+      - name: Generate Android launcher icons from expr-concerned
+        working-directory: build/fixed
+        run: npx -y @capacitor/assets generate --android
+
+      - name: Sync exact web artifact
+        working-directory: build/fixed
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: build/fixed/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Verify APK exists
+        run: |
+          set -euo pipefail
+          test -f build/fixed/android/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum build/fixed/android/app/build/outputs/apk/debug/app-debug.apk > build/apk-sha256.txt
+
+      - name: Upload maintained APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nori-v2-Fixed-APK
+          path: |
+            build/fixed/android/app/build/outputs/apk/debug/app-debug.apk
+            build/source-checksums.txt
+            build/apk-sha256.txt
+          if-no-files-found: error
+          retention-days: 90
