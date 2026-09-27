@@ -24,6 +24,17 @@ jobs:
           cp ../../expr-concerned.jpg resources/icon.jpg
           mkdir -p www
           find . -mindepth 1 -maxdepth 1 ! -name www ! -name android ! -name node_modules -exec cp -a {} www/ \;
+          cp ../../nori-modern/index.html www/index.html
+          cp ../../nori-modern/voice.js www/voice.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('www/index.html')
+          x=p.read_text()
+          marker='<script>'
+          if marker not in x: raise SystemExit('Nori modern script anchor missing')
+          x=x.replace(marker,'<script src="voice.js"></script>'+marker,1)
+          p.write_text(x)
+          PY
           node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('capacitor.config.json','utf8'));p.webDir='www';fs.writeFileSync('capacitor.config.json',JSON.stringify(p,null,2)+'\\n')"
           cd ../..
           sha256sum nori-v2-fixed.zip expr-concerned.jpg > build/source-checksums.txt
