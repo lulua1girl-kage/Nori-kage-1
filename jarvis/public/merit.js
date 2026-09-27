@@ -1,0 +1,4 @@
+function list(v){return Array.isArray(v)?v:[]}
+function points(x){for(const k of ['points','value','merit','score']){const n=Number(x?.[k]);if(Number.isFinite(n))return n}return 0}
+export function analyzeMerit(kage={}){const m=kage.merit||kage.meritLedger||{};const entries=list(m.entries||m.ledger||m.records||m);const total=Number.isFinite(Number(m.total))?Number(m.total):entries.reduce((s,e)=>s+points(e),0);const awards=list(kage.awards);return {schemaVersion:1,total,entries:entries.length,awards:awards.map(a=>String(a?.name||a?.title||a)).slice(0,30),source:'documented KAGE data only'} }
+export function meritPrompt(report){return `Merit/Achievement Brain report: ${JSON.stringify(report)}. Treat merit as a record of verified accomplishments, never as a peer ranking. Do not fabricate points or awards.`}
