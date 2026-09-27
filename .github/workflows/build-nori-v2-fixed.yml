@@ -20,7 +20,7 @@ jobs:
           unzip -q nori-v2-fixed.zip -d build
           test -d build/fixed
           cp expr-concerned.jpg build/fixed/assets/icon-source.jpg
-          convert build/fixed/assets/icon-source.jpg -resize 1024x1024^ -gravity center -extent 1024x1024 build/fixed/assets/icon.png
+          magick build/fixed/assets/icon-source.jpg -resize 1024x1024^ -gravity center -extent 1024x1024 build/fixed/assets/icon.png
           sha256sum nori-v2-fixed.zip expr-concerned.jpg build/fixed/assets/icon.png > build/source-checksums.txt
 
       - name: Set up Node
