@@ -19,7 +19,7 @@ vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync("nori-core.js","utf8"), sandbox);
 
 const n = sandbox.window.NoriEngine;
-assert(n && n.version === "2.0.0-handbook");
+assert(n && n.version === "2.1.0-handbook");
 let planned = n.plan([{task:"Math U4",subject:"Math",duration:45},{task:"Instagram",subject:""}]);
 assert.strictEqual(planned[0].task, "Math U4");
 assert(n.startBlock(planned[0].id));
@@ -36,3 +36,11 @@ assert.strictEqual(recovery.active, true);
 assert.strictEqual(n.snapshot().degree, 0);
 
 console.log("Nori Mentor Engine smoke test: PASS");
+
+const ci1 = n.dailyCheckIn({accomplished:"Math U4 for 45 min",unfinished:"Biology revision",deadlines:"English tomorrow",capacity:"normal",distractions:"none",nextAction:"Biology"});
+assert.strictEqual(n.snapshot().checkInStreak.current, 1);
+assert.strictEqual(ci1.date.length, 10);
+const ci2 = n.dailyCheckIn({accomplished:"Updated check-in"});
+assert.strictEqual(n.snapshot().checkInStreak.current, 1);
+assert.strictEqual(ci2.date, ci1.date);
+console.log("Nori daily check-in state: PASS");
