@@ -6,7 +6,7 @@
   "use strict";
 
   const KEY = "nori_mentor_engine_v2";
-  const VERSION = "2.0.0-handbook";
+  const VERSION = "2.1.0-handbook";
   const now = () => Date.now();
   const day = 86400000;
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
@@ -26,6 +26,8 @@
     merit: 0,
     degree: 0,
     streak: { current: 0, best: 0, lastDate: null },
+    checkInStreak: { current: 0, best: 0, lastDate: null },
+    dailyCheckins: [],
     commitments: [],
     blocks: [],
     incidents: [],
@@ -43,6 +45,8 @@
       return Object.assign({}, DEFAULT, x || {}, {
         handbook: Object.assign({}, DEFAULT.handbook, x && x.handbook || {}),
         streak: Object.assign({}, DEFAULT.streak, x && x.streak || {}),
+        checkInStreak: Object.assign({}, DEFAULT.checkInStreak, x && x.checkInStreak || {}),
+        dailyCheckins: Array.isArray(x && x.dailyCheckins) ? x.dailyCheckins : [],
         metrics: Object.assign({}, DEFAULT.metrics, x && x.metrics || {})
       });
     } catch (_) { return JSON.parse(JSON.stringify(DEFAULT)); }
@@ -79,14 +83,19 @@
   }
 
   function todayKey(t) {
-    return new Date(t || now()).toISOString().slice(0, 10);
+    const d = new Date(t || now());
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+  }
+
+  function yesterdayKey() {
+    return todayKey(now() - day);
   }
 
   function updateStreak(success) {
     const d = todayKey();
     if (!success) return;
     if (s.streak.lastDate === d) return;
-    const yesterday = todayKey(now() - day);
+    const yesterday = yesterdayKey();
     s.streak.current = s.streak.lastDate === yesterday ? s.streak.current + 1 : 1;
     s.streak.best = Math.max(s.streak.best, s.streak.current);
     s.streak.lastDate = d;
@@ -192,6 +201,62 @@
     return c;
   }
 
+  function checkInPrompt() {
+    return [
+      "NORI DAILY COMMAND CHECK-IN",
+      "Answer naturally; Nori will interpret this and update the state.",
+      "1. What did you actually accomplish today?",
+      "2. What is still unfinished?",
+      "3. What must be done tomorrow or has a near deadline?",
+      "4. Any exam, test, assignment, or important school deadline approaching?",
+      "5. How is your current capacity: normal, tired, sick, headache, overloaded, or something else?",
+      "6. Any Instagram, Reels, or other distraction incident?",
+      "7. What is the single most important next action?"
+    ].join("\n");
+  }
+
+  function dailyCheckIn(data) {
+    const input = Object.assign({}, data || {});
+    const d = todayKey();
+    const existing = s.dailyCheckins.find(x => x.date === d);
+    const item = Object.assign(existing || {
+      id: "ci_" + now(),
+      date: d,
+      at: now()
+    }, {
+      at: now(),
+      accomplished: input.accomplished || input.completed || "",
+      unfinished: input.unfinished || input.remaining || "",
+      deadlines: input.deadlines || "",
+      exams: input.exams || "",
+      capacity: input.capacity || "",
+      distractions: input.distractions || "",
+      nextAction: input.nextAction || "",
+      raw: input.raw || ""
+    });
+
+    if (!existing) {
+      const y = yesterdayKey();
+      s.checkInStreak.current = s.checkInStreak.lastDate === y ? s.checkInStreak.current + 1 : 1;
+      s.checkInStreak.best = Math.max(s.checkInStreak.best, s.checkInStreak.current);
+      s.checkInStreak.lastDate = d;
+      s.dailyCheckins.push(item);
+      if (s.dailyCheckins.length > 60) s.dailyCheckins.splice(0, s.dailyCheckins.length - 60);
+    }
+    add(s.incidents, {
+      type: "daily-check-in",
+      at: now(),
+      details: "Daily check-in recorded",
+      cause: "system"
+    });
+    save();
+    return item;
+  }
+
+  function todayCheckIn() {
+    return s.dailyCheckins.find(x => x.date === todayKey()) || null;
+  }
+
   function recordLearning(data) {
     const x = Object.assign({
       id: "l_" + now(),
@@ -249,6 +314,8 @@
       merit: s.merit,
       degree: s.degree,
       streak: s.streak,
+      checkInStreak: s.checkInStreak,
+      todayCheckIn: todayCheckIn(),
       recovery: s.recovery,
       metrics: s.metrics,
       commitments: s.commitments.slice(-12),
@@ -275,7 +342,8 @@
       "7. In academic tutoring, protect independent reasoning and retrieval. Do not make the student dependent on AI.",
       "8. Treat plans as hypotheses. Update them from execution evidence.",
       "9. Use the existing handbook vocabulary: merit, streak, degree, consequence, recovery, integrity, investigation.",
-      "10. If the handbook state conflicts with a proposed action, explain the conflict and prefer the safer mission-aligned action."
+      "10. If the handbook state conflicts with a proposed action, explain the conflict and prefer the safer mission-aligned action.",
+      "11. The daily check-in is an evidence/reporting loop, not a punishment trigger. Ask only for information needed to update academic state."
     ].join("\n");
   }
 
@@ -290,6 +358,9 @@
       const active = s.commitments.find(x => x.status === "active");
       return { action: "complete_block", data: active ? endBlock(active.id, { completed: true, note: t }) : null };
     }
+    if (/daily check.?in|check.?in|evening review/.test(low)) {
+      return { action: "daily_checkin_prompt", prompt: checkInPrompt(), data: todayCheckIn() };
+    }
     if (/instagram|reels|scrolling|distraction/.test(low)) {
       return { action: "investigate_distraction", data: recommendConsequence(t) };
     }
@@ -301,7 +372,7 @@
 
   const api = {
     version: VERSION,
-    snapshot, promptContext, plan, startBlock, endBlock, recordLearning, retrieve,
+    snapshot, promptContext, plan, startBlock, endBlock, recordLearning, retrieve, checkInPrompt, dailyCheckIn, todayCheckIn,
     recover, clearRecovery, investigate, recommendConsequence, assess, handle,
     setDegree(n) {
       const next = clamp(Number(n) || 0, 0, s.handbook.maxDegree);
