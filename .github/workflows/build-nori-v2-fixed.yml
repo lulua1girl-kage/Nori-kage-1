@@ -25,6 +25,7 @@ jobs:
           find . -mindepth 1 -maxdepth 1 ! -name www ! -name android ! -name node_modules -exec cp -a {} www/ \;
           cp ../../nori-modern/index.html www/index.html
           cp ../../nori-modern/voice.js www/voice.js
+          cp ../../nori-modern/nori-core.js www/nori-core.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('www/index.html'); x=p.read_text()
