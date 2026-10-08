@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -21,7 +22,7 @@ class NoriSchedulerPlugin : Plugin() {
             call.resolve(JSObject().put("scheduled", false).put("reason", "exact_alarm_permission"))
             return
         }
-        call.resolve(JSObject().put("scheduled", true).put("nextTrigger", trigger))
+        call.resolve(JSObject().put("scheduled", true).put("nextTrigger", trigger).put("notificationsEnabled", NotificationManagerCompat.from(bridge.context).areNotificationsEnabled()))
     }
 
     @PluginMethod
