@@ -51,6 +51,20 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm install --save-exact @capacitor-community/speech-recognition@6.0.1 @capacitor-community/text-to-speech@4.1.1
+      - name: Patch Android voice bridge
+        working-directory: build/fixed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('nori-native-bridge.js'); s=p.read_text()
+          old='''function noriSpeak(text, options) {\n  if (!window.speechSynthesis) return;\n  options = options || {};'''
+          new='''function noriSpeak(text, options) {\n  options = options || {};\n  if (NORI_IS_NATIVE) {\n    const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;\n    if (P && P.speak) return P.speak({text:String(text||''),lang:'en-US',rate:options.rate==null?0.98:options.rate,pitch:options.pitch==null?1:options.pitch,volume:1,category:'ambient',queueStrategy:1});\n  }\n  if (!window.speechSynthesis) return;'''
+          if old not in s: raise SystemExit('noriSpeak anchor not found')
+          p.write_text(s.replace(old,new))
+          PY
+      - name: Create Android wrapper
+        working-directory: build/fixed
+        run: npx cap add android
       - name: Patch Android Nori daily check-in bridge
         working-directory: build/fixed
         run: |
@@ -96,6 +110,8 @@ jobs:
                   if 'onCreate(' in x:
                       x=x.replace('onCreate(Bundle savedInstanceState) {', 'onCreate(Bundle savedInstanceState) {\n        registerPlugin(NoriSchedulerPlugin.class);', 1)
                   else:
+                      if 'import android.os.Bundle;' not in x:
+                          x=re.sub(r'(package [^;]+;\n)', r'\\1import android.os.Bundle;\n', x, count=1)
                       x=x.replace('}', '    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(NoriSchedulerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}', 1)
                   main.write_text(x)
           else:
@@ -114,20 +130,6 @@ jobs:
                   raise SystemExit('MainActivity.java/kt not found')
           PY
 
-      - name: Patch Android voice bridge
-        working-directory: build/fixed
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('nori-native-bridge.js'); s=p.read_text()
-          old='''function noriSpeak(text, options) {\n  if (!window.speechSynthesis) return;\n  options = options || {};'''
-          new='''function noriSpeak(text, options) {\n  options = options || {};\n  if (NORI_IS_NATIVE) {\n    const P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.TextToSpeech;\n    if (P && P.speak) return P.speak({text:String(text||''),lang:'en-US',rate:options.rate==null?0.98:options.rate,pitch:options.pitch==null?1:options.pitch,volume:1,category:'ambient',queueStrategy:1});\n  }\n  if (!window.speechSynthesis) return;'''
-          if old not in s: raise SystemExit('noriSpeak anchor not found')
-          p.write_text(s.replace(old,new))
-          PY
-      - name: Create Android wrapper
-        working-directory: build/fixed
-        run: npx cap add android
       - name: Generate Android launcher icons
         working-directory: build/fixed
         run: |
