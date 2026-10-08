@@ -28,6 +28,9 @@ jobs:
           cp ../../nori-modern/index.html www/index.html
           cp ../../nori-modern/voice.js www/voice.js
           cp ../../nori-modern/nori-core.js www/nori-core.js
+          cp ../../nori-modern/nori-core.js nori-core.js
+          cp ../../nori-modern/nori-core.test.js nori-core.test.js
+          node nori-core.test.js
           python3 - <<'PY'
           from pathlib import Path
           p=Path('www/index.html'); x=p.read_text()
