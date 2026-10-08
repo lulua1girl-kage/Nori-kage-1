@@ -28,6 +28,7 @@ jobs:
           cp ../../nori-modern/index.html www/index.html
           cp ../../nori-modern/voice.js www/voice.js
           cp ../../nori-modern/nori-core.js www/nori-core.js
+          cp ../../nori-modern/nori-checkin-scheduler.js www/nori-checkin-scheduler.js
           cp ../../nori-modern/nori-core.js nori-core.js
           cp ../../nori-modern/nori-core.test.js nori-core.test.js
           node nori-core.test.js
@@ -50,6 +51,69 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm install --save-exact @capacitor-community/speech-recognition@6.0.1 @capacitor-community/text-to-speech@4.1.1
+      - name: Patch Android Nori daily check-in bridge
+        working-directory: build/fixed
+        run: |
+          set -euo pipefail
+          mkdir -p android/app/src/main/java/com/nori/kage/scheduler
+          cp ../../nori-native-scheduler/NoriAlarmScheduler.kt android/app/src/main/java/com/nori/kage/scheduler/
+          cp ../../nori-native-scheduler/NoriCheckInReceiver.kt android/app/src/main/java/com/nori/kage/scheduler/
+          cp ../../nori-native-scheduler/NoriBootReceiver.kt android/app/src/main/java/com/nori/kage/scheduler/
+          cp ../../nori-native-scheduler/NoriSchedulerPlugin.kt android/app/src/main/java/com/nori/kage/scheduler/
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          s = manifest.read_text()
+          perms = [
+              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
+              '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />',
+              '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />'
+          ]
+          insert = '\n'.join(p for p in perms if p not in s)
+          if 'android.permission.POST_NOTIFICATIONS' not in s:
+              s = s.replace('<manifest', '<manifest', 1)
+              s = re.sub(r'(<manifest[^>]*>\n)', r'\\1' + insert + '\n', s, count=1)
+          receivers = '''        <receiver android:name="com.nori.kage.scheduler.NoriCheckInReceiver" android:exported="false" />
+          <receiver android:name="com.nori.kage.scheduler.NoriBootReceiver" android:enabled="true" android:exported="false">
+              <intent-filter>
+                  <action android:name="android.intent.action.BOOT_COMPLETED" />
+                  <action android:name="android.intent.action.TIME_SET" />
+                  <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                  <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                  <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+              </intent-filter>
+          </receiver>'''
+          if 'NoriCheckInReceiver' not in s:
+              s=s.replace('</application>', receivers+'\n    </application>')
+          manifest.write_text(s)
+          main = next(Path('android/app/src/main/java').rglob('MainActivity.java'), None)
+          if main:
+              x=main.read_text()
+              if 'NoriSchedulerPlugin' not in x:
+                  x=x.replace('package ', 'package ', 1)
+                  x=re.sub(r'(package [^;]+;\n)', r'\\1import com.nori.kage.scheduler.NoriSchedulerPlugin;\n', x, count=1)
+                  if 'onCreate(' in x:
+                      x=x.replace('onCreate(Bundle savedInstanceState) {', 'onCreate(Bundle savedInstanceState) {\n        registerPlugin(NoriSchedulerPlugin.class);', 1)
+                  else:
+                      x=x.replace('}', '    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        registerPlugin(NoriSchedulerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}', 1)
+                  main.write_text(x)
+          else:
+              main = next(Path('android/app/src/main/java').rglob('MainActivity.kt'), None)
+              if main:
+                  x=main.read_text()
+                  if 'NoriSchedulerPlugin' not in x:
+                      x=x.replace('package ', 'package ', 1)
+                      x=re.sub(r'(package [^\n]+\n)', r'\\1import android.os.Bundle\nimport com.nori.kage.scheduler.NoriSchedulerPlugin\n', x, count=1)
+                      if 'override fun onCreate' in x:
+                          x=x.replace('{\n', '{\n        registerPlugin(NoriSchedulerPlugin::class.java)\n', 1)
+                      else:
+                          x=x.replace('}', '    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(NoriSchedulerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}', 1)
+                      main.write_text(x)
+              else:
+                  raise SystemExit('MainActivity.java/kt not found')
+          PY
+
       - name: Patch Android voice bridge
         working-directory: build/fixed
         run: |
