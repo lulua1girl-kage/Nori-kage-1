@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#020908"><title>NORI — Holographic Voice Layer</title>
+<style>
+:root{color-scheme:dark;--c:#65ffe6;--c2:#19cdb9;--dim:#4a9890;--bg:#020908}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:#d5fff8;font-family:Inter,Segoe UI,Arial,sans-serif}
+body{background:radial-gradient(ellipse at 50% 48%,#00332e 0%,#001715 25%,#020908 65%);overflow:hidden}
+body:after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,#79ffeb0b 4px,transparent 5px);mix-blend-mode:screen}
+header{height:54px;border-bottom:1px solid #3dffe12b;display:flex;align-items:center;justify-content:space-between;padding:0 16px;letter-spacing:.16em;font-size:10px;color:#73b9ae}
+.logo{font-weight:700;font-style:italic;font-size:21px;color:#d7fff8;letter-spacing:.18em;text-shadow:0 0 14px #3dffda77}
+.live{display:flex;align-items:center;gap:7px}.dot{width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);animation:blink 1.7s infinite}@keyframes blink{50%{opacity:.3}}
+main{height:calc(100dvh - 54px);max-width:800px;margin:auto;display:flex;flex-direction:column;padding:10px 14px 16px}
+.labels{display:flex;justify-content:space-between;font:9px ui-monospace,monospace;letter-spacing:.13em;color:#4d9990;padding:5px 2px}
+.visual{position:relative;flex:1;min-height:260px;display:grid;place-items:center;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+.core{position:relative;z-index:1;text-align:center;pointer-events:none;text-shadow:0 0 20px #40ffdd55}
+.core .over{font-size:8px;letter-spacing:.32em;color:#70c9bc}.core h1{font-size:clamp(26px,7vw,44px);font-weight:400;letter-spacing:.22em;margin:9px 0;color:#e0fff9;text-shadow:0 0 9px #50ffe4,0 0 36px #29ffdd44}.core p{font-size:9px;letter-spacing:.21em;color:#77c7bb;margin:0}
+.info{display:flex;justify-content:space-between;gap:8px;color:#4c9990;font:9px ui-monospace,monospace;letter-spacing:.1em;padding:5px 0}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 0}
+button{font:10px inherit;letter-spacing:.12em;color:#bffff4;background:#04201e;border:1px solid #55fbe044;padding:12px 15px;min-width:92px;cursor:pointer}
+button.active,button:active{border-color:#69ffe8;background:#06463e;box-shadow:0 0 16px #20d6bd20}
+button:focus-visible{outline:1px solid var(--c);outline-offset:3px}
+.note{text-align:center;font-size:9px;line-height:1.7;color:#4b8b83;padding:5px 8px 0}
+@media(min-width:600px){main{padding:15px 24px 22px}.visual{min-height:400px}}
+@media(prefers-reduced-motion:reduce){*,*:after{animation:none!important}}
+</style>
+</head>
+<body>
+<header><div><span class="logo">NORI</span> <span> / MENTOR CORE</span></div><div class="live"><span class="dot"></span><span id="sys">VISUAL STANDBY</span></div></header>
+<main>
+<div class="labels"><span>HOLOGRAPHIC VOICE LAYER // N-01</span><span>LOCAL VISUALIZER</span></div>
+<section class="visual" id="visual"><canvas id="field"></canvas><div class="core"><div class="over">PERSONAL MENTOR SYSTEM</div><h1 id="title">NORI</h1><p id="subtitle">READY WHEN YOU ARE</p></div></section>
+<div class="info"><span>FIELD <b id="fieldnum">72.8</b>%<br>OSCILLATION <b id="osc">ACTIVE</b></span><span style="text-align:right">SIGNAL <b id="sig">LOCAL</b><br>VOICE LINK <b>NOT CONNECTED</b></span></div>
+<div class="controls"><button id="idle" class="active">STANDBY</button><button id="speak">NORI SPEAKING</button><button id="listen">LISTENING</button><button id="reset">RESET FIELD</button></div>
+<div class="note">This is a visual companion prototype. It cannot overlay ChatGPT’s native voice screen or access its live audio. Controls demonstrate the hologram’s states only; no microphone is accessed.</div>
+</main>
+<script>
+(()=>{'use strict';
+const canvas=document.querySelector('#field'),ctx=canvas.getContext('2d'),stage=document.querySelector('#visual');
+let W=1,H=1,dpr=1,t=0,state='idle',reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TAU=Math.PI*2,rand=(a,b)=>a+Math.random()*(b-a);
+const grains=Array.from({length:560},()=>({a:rand(0,TAU),r:rand(.55,1.24),p:rand(0,TAU),s:rand(.2,1.7),o:rand(.15,.8)}));
+const sparks=Array.from({length:105},()=>({a:rand(0,TAU),r:rand(.48,1.12),p:rand(0,TAU),s:rand(.5,2)}));
+function size(){let r=stage.getBoundingClientRect();W=r.width;H=r.height;dpr=Math.min(devicePixelRatio||1,1.7);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',size);size();
+function contour(cx,cy,base,amp,phase,seed,color,width,alpha){ctx.beginPath();for(let i=0;i<=320;i++){let a=i/320*TAU,w=Math.sin(a*5+phase*.7+seed)*.36+Math.sin(a*9-phase*1.15+seed*2)*.23+Math.sin(a*17+phase*.65+seed*4)*.13+Math.sin(a*31-phase*.8+seed)*.07+Math.sin(a*47+phase*2.5+seed)*.035;let r=base+amp*w,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r*.92;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath();ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();ctx.globalAlpha=1}
+function draw(){if(!W||!H)return;t+=.012*(reduced?.18:state==='speaking'?1.75:state==='listening'?1.35:1);ctx.clearRect(0,0,W,H);let cx=W/2,cy=H/2,R=Math.min(W*.37,H*.32,190),amp=state==='speaking'?1.5:state==='listening'?1.23:.85;
+let g=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.7);g.addColorStop(0,'#08a8911b');g.addColorStop(.55,'#00504a0b');g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+for(let i=0;i<160;i++){let a=i/160*TAU+t*.012,r0=R*(.99+(i%4===0?.035:0)),r1=r0+(i%4===0?R*.045:R*.015);ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0*.92);ctx.lineTo(cx+Math.cos(a)*r1,cy+Math.sin(a)*r1*.92);ctx.strokeStyle=i%4===0?'#76ffe966':'#49dfd01e';ctx.lineWidth=.7;ctx.stroke()}
+for(let b=0;b<3;b++){let n=b===1?76:49,r=R*(.68+b*.08);for(let i=0;i<n;i++){let a=i/n*TAU+t*(b%2?-.1:.07)+b*.5;if(Math.sin(a*3+t*.3+b)>.85)continue;ctx.beginPath();ctx.arc(cx,cy,r+Math.sin(a*12+t*3)*R*.006*amp,a,a+TAU/n*.55);ctx.strokeStyle=b===1?(i%4===0?'#74ffeb77':'#1bd6c82b'):'#25bba52b';ctx.lineWidth=b===1?R*.017:1;ctx.stroke()}}
+for(let i=0;i<204;i++){let a=i/204*TAU+t*.018,env=.2+.55*Math.pow(Math.sin(i*1.71+t*3.2),2)+.25*Math.pow(Math.sin(i*.27-t*2),2),inner=R*(.57+Math.sin(i*.41+t)*.02),len=R*(.025+env*.1)*amp,x1=cx+Math.cos(a)*inner,y1=cy+Math.sin(a)*inner*.92,x2=cx+Math.cos(a)*(inner+len),y2=cy+Math.sin(a)*(inner+len)*.92;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=i%7===0?'#9affeeaa':'#2be2cd42';ctx.lineWidth=i%7===0?1.15:.65;ctx.stroke()}
+contour(cx,cy,R*.86,R*.13*amp,t*1.2,1.2,'#4bffe15e',1.25,.9);contour(cx,cy,R*.94,R*.075*amp,-t*.9,2.4,'#59ffe044',1.4,.8);contour(cx,cy,R*1.04,R*.12*amp,t*.75,3.8,'#22e6ce51',1,.85);contour(cx,cy,R*1.1,R*.09*amp,-t*1.1,5.1,'#58ffe032',.8,.8);
+for(let k=0;k<7;k++)contour(cx,cy,R*(.77+k*.047),R*(.024+k*.004)*amp,t*(k%2?1.5:-1.1)+k*1.1,k*3,'#48f9d821',.6,.7);
+let cr=R*.4;ctx.save();ctx.beginPath();ctx.arc(cx,cy,cr,0,TAU);ctx.clip();
+for(let row=0;row<=14;row++){let lat=(row/14-.5)*Math.PI;ctx.beginPath();for(let j=0;j<=48;j++){let lon=j/48*TAU+t*.1,rr=Math.cos(lat)*cr,x=cx+Math.cos(lon)*rr,y=cy+Math.sin(lon)*rr*.92+Math.sin(lon*3+t+row)*amp*.8;if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=row%3===0?'#c7fff877':'#69ffe53c';ctx.lineWidth=row%3===0?.8:.48;ctx.stroke()}
+for(let col=0;col<25;col++){let a=col/25*TAU+t*.1;ctx.beginPath();for(let j=0;j<=90;j++){let lat=(j/90-.5)*Math.PI,rr=Math.cos(lat)*cr,x=cx+Math.cos(a)*rr,y=cy+Math.sin(lat)*cr*.92;if(j===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle=col%4===0?'#b5fff477':'#63f9e833';ctx.lineWidth=.55;ctx.stroke()}
+for(let row=0;row<14;row++)for(let col=0;col<48;col+=2){let lat1=(row/14-.5)*Math.PI,lat2=((row+1)/14-.5)*Math.PI,a1=col/48*TAU+t*.1,a2=(col+1)/48*TAU+t*.1;ctx.beginPath();ctx.moveTo(cx+Math.cos(a1)*Math.cos(lat1)*cr,cy+Math.sin(lat1)*cr*.92);ctx.lineTo(cx+Math.cos(a2)*Math.cos(lat2)*cr,cy+Math.sin(lat2)*cr*.92);ctx.strokeStyle='#a0fff53d';ctx.lineWidth=.42;ctx.stroke()}
+let cg=ctx.createRadialGradient(cx-cr*.25,cy-cr*.3,1,cx,cy,cr);cg.addColorStop(0,'#d4fff51c');cg.addColorStop(1,'#00a89904');ctx.fillStyle=cg;ctx.fillRect(cx-cr,cy-cr,cr*2,cr*2);ctx.restore();
+ctx.beginPath();ctx.arc(cx,cy,cr,0,TAU);ctx.strokeStyle='#c7fff7d9';ctx.lineWidth=1.5;ctx.shadowColor='#2affdd';ctx.shadowBlur=12;ctx.stroke();ctx.shadowBlur=0;
+for(let p of grains){let a=p.a+t*.02*p.s,r=R*(p.r+Math.sin(t+p.p)*.018),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r*.92;ctx.globalAlpha=p.o*(.4+.6*(.5+.5*Math.sin(t*2*p.s+p.p)));ctx.fillStyle=p.r>1?'#42dcca':'#9dfff2';ctx.fillRect(x,y,p.r>1?1.1:1.5,p.r>1?1.1:1.5)}ctx.globalAlpha=1;
+for(let p of sparks){let a=p.a+t*.13*p.s,r=R*(p.r+.018*Math.sin(t*2+p.p)),x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r*.92;ctx.beginPath();ctx.arc(x,y,1.1,0,TAU);ctx.fillStyle='#5fffe0a8';ctx.fill()}
+for(let k=0;k<3;k++){let ph=(t*.11+k/3)%1,r=R*(.38+ph*.88);ctx.beginPath();ctx.ellipse(cx,cy,r,r*.92,0,ph*TAU,ph*TAU+Math.PI*.5);ctx.strokeStyle='rgba(71,255,225,'+((1-ph)*.18)+')';ctx.lineWidth=.8;ctx.stroke()}
+document.querySelector('#fieldnum').textContent=(72.8+Math.sin(t*.4)*1.6).toFixed(1);requestAnimationFrame(draw)}
+function set(s){state=s;document.querySelector('#sys').textContent=s==='idle'?'VISUAL STANDBY':s==='speaking'?'SPEAKING STATE DEMO':'LISTENING STATE DEMO';document.querySelector('#subtitle').textContent=s==='idle'?'READY WHEN YOU ARE':s==='speaking'?'SPEECH-REACTIVE MOTION DEMO':'LISTENING MOTION DEMO';document.querySelector('#sig').textContent='LOCAL';document.querySelector('#osc').textContent=s==='speaking'?'HIGH':s==='listening'?'MED':'ACTIVE';document.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.id===s||b.id===(s==='idle'?'idle':s==='speaking'?'speak':'listen')))}
+document.querySelector('#idle').onclick=()=>set('idle');document.querySelector('#speak').onclick=()=>set('speaking');document.querySelector('#listen').onclick=()=>set('listening');document.querySelector('#reset').onclick=()=>{t=0;set('idle')};set('idle');requestAnimationFrame(draw);
+})();
+</script>
+</body></html>
